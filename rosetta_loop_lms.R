@@ -79,12 +79,13 @@ library(doMC)
 library(parallel)
 registerDoMC(cores = 2)
 
-dat = read.csv(file = 'llcsdougdat.csv')
+ dat = read.csv(file = 'llcsdougdat.csv')
+# dat = read.csv(file = 'llcspcsdougdat.csv')
 # There are 12000 lines in the file - we want to sample randomly from them
 
 n = nrow(dat)
 
-sample.size = c(10000)
+sample.size = seq(from = 20000, to = 30000, by = 1000)
 lm.hr.vec = rep(NA, length = length(sample.size))
 logit.hr.vec = rep(NA, length = length(sample.size))
 for(i in 1:length(lm.hr.vec)){
