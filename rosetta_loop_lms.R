@@ -79,15 +79,23 @@ library(doMC)
 library(parallel)
 registerDoMC(cores = 2)
 
- dat = read.csv(file = 'llcsdougdat.csv')
-# dat = read.csv(file = 'llcspcsdougdat.csv')
+#dat = read.csv(file = 'llcsdougdat.csv')
+ dat = read.csv(file = 'llcspcsdougdat.csv')
 # There are 12000 lines in the file - we want to sample randomly from them
 
 n = nrow(dat)
 
-sample.size = seq(from = 20000, to = 30000, by = 1000)
+sample.size = c(1000, 2000, 5000, 10000, 20000, 30000, 50000)
 lm.hr.vec = rep(NA, length = length(sample.size))
 logit.hr.vec = rep(NA, length = length(sample.size))
+lasso.hr.vec =  rep(NA, length = length(sample.size))
+
+reps = 50
+lm.hr.mat    = matrix(NA, nrow = reps, ncol = length(sample.size))
+logit.hr.mat = matrix(NA, nrow = reps, ncol = length(sample.size))
+
+for(j in 1:reps){
+
 for(i in 1:length(lm.hr.vec)){
   
 ix = sample(1:n, sample.size[i])
@@ -129,7 +137,25 @@ logit.predict[logit.prob >.5] = TRUE
 logit.tab = table(pred = logit.predict, true = convect.test)
 logit.hr = sum(diag(logit.tab)) / sum(logit.tab)
 
+logit.hr.vec[i] = logit.hr
+
 }
+
+lm.hr.mat[j,] = lm.hr.vec
+logit.hr.mat[j,] = logit.hr.vec 
+
+}
+
+pdf(file = 'lm_vs_logit_sample_size_pcs.pdf')
+matplot(sample.size, t(lm.hr.mat), type = 'l',lty = 'solid', col = 'grey', ylim = c(0.75,0.95),
+        main = 'rotated', ylab = 'hit rate')
+lines(sample.size, apply(t(lm.hr.mat), 1, mean), col = 'black', lwd = 2)
+matlines(sample.size, t(logit.hr.mat), type = 'l',lty = 'solid', col = 'red')
+lines(sample.size, apply(t(logit.hr.mat), 1, mean), col = 'darkred', lwd = 2)
+legend('topleft', lty = c(1,1) , col = c('grey', 'red'), legend = c('lm', 'logit'))
+
+dev.off()
+
 
 plot(sample.size, lm.hr.vec, type = 'o')
 points(sample.size, logit.hr.vec, type = 'o', col = 'red')
