@@ -84,7 +84,7 @@ dat = read.csv(file = 'llcsdougdat.csv')
 
 n = nrow(dat)
 
-sample.size = c(120000)
+sample.size = c(10000)
 lm.hr.vec = rep(NA, length = length(sample.size))
 logit.hr.vec = rep(NA, length = length(sample.size))
 for(i in 1:length(lm.hr.vec)){
@@ -92,7 +92,7 @@ for(i in 1:length(lm.hr.vec)){
 ix = sample(1:n, sample.size[i])
 
 # If the sample is from the first 30k lines of the file it is convecting
-convect = ix < 30001
+convect = ix > 90000
 
 # First 56 columns are inputs
 X = dat[ix, 1:56] 
@@ -100,7 +100,7 @@ X.mat = as.matrix(X)
 
 # get some test data
 ix.test = sample(1:n, 1000)
-convect.test = ix.test < 30001
+convect.test = ix.test > 90000
 
 X.test = dat[ix.test, 1:56] # data frame
 X.test.mat = as.matrix(X.test) # matrix
@@ -150,8 +150,8 @@ lambda_1se = cv.out$lambda.1se
 coef(cv.out,s=lambda_1se)
 
 # Lasso prediction
-lasso_prob = predict(cv.out, newx = X.test.mat,s=lambda_min,type="response")
-lasso_class = predict(cv.out, newx = X.test.mat,s=lambda_min,type="class")
+lasso_prob = predict(cv.out, newx = X.test.mat,s=lambda_1se,type="response")
+lasso_class = predict(cv.out, newx = X.test.mat,s=lambda_1se,type="class")
 
 lasso_predict = rep(FALSE, length(convect.test))
 lasso_predict[lasso_prob>.5] = TRUE
@@ -160,7 +160,8 @@ lasso.tab = table(pred = lasso_predict, true = convect.test)
 #lasso.tab = table(pred = as.logical(lasso_class), true = convect.test)
 
 lasso.hr = sum(diag(lasso.tab)) / sum(lasso.tab)
-logit.hr.vec[i] = logit.hr
+
+lasso.hr.vec[i] = lasso.hr
 
 
 
