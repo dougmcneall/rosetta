@@ -26,11 +26,11 @@
 #ie the amount the convection scheme changes theta. 
 # Second 28 are q increments. Again - all J/kg.
 
-# First 30000 are convecting (and in order of increasing convection).
+# last 30000 are convecting (and in order of increasing convection).
 # In fact with some repeats, particularly at the top end because 
 # I chose the cases to span different types of convection with equal weights.
 # Works well for model of convecting cases.).
-# Next 90000 are non-convecting.
+# First 90000 are non-convecting.
 # Amount of convection I typically determined by meaning levels 11 to 27  
 # (starting at zero or 12 to 28 in the way I've encoded it for you).
 # (Can be done with moisture instead. I didn't find that much use.) 
