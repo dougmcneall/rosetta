@@ -79,11 +79,16 @@ library(doMC)
 library(parallel)
 registerDoMC(cores = 2)
 
-#dat = read.csv(file = 'llcsdougdat.csv')
- dat = read.csv(file = 'llcspcsdougdat.csv')
+dat = read.csv(file = 'llcsdougdat.csv')
+#dat = read.csv(file = 'llcspcsdougdat.csv')
 # There are 12000 lines in the file - we want to sample randomly from them
 
 n = nrow(dat)
+
+
+# This section looks at how sample size impacts prediction accuracy
+# and compares a straight linear model against logistic regression
+# for binary class prediction.
 
 sample.size = c(1000, 2000, 5000, 10000, 20000, 30000, 50000)
 lm.hr.vec = rep(NA, length = length(sample.size))
@@ -95,55 +100,55 @@ lm.hr.mat    = matrix(NA, nrow = reps, ncol = length(sample.size))
 logit.hr.mat = matrix(NA, nrow = reps, ncol = length(sample.size))
 
 for(j in 1:reps){
-
-for(i in 1:length(lm.hr.vec)){
   
-ix = sample(1:n, sample.size[i])
-
-# If the sample is from the first 30k lines of the file it is convecting
-convect = ix > 90000
-
-# First 56 columns are inputs
-X = dat[ix, 1:56] 
-X.mat = as.matrix(X)
-
-# get some test data
-ix.test = sample(1:n, 1000)
-convect.test = ix.test > 90000
-
-X.test = dat[ix.test, 1:56] # data frame
-X.test.mat = as.matrix(X.test) # matrix
-
-# Fit linear model
-lmfit = lm(convect~., data = X)
-# The linear model actually does pretty well at keeping most
-# coefficients near zero.
-
-# Linear model prediction
-lm.prob = predict(lmfit, newdata = as.data.frame(X.test))
-lm.predict =  rep(FALSE, length(convect.test))
-lm.predict[lm.prob >.5] = TRUE
-
-lm.tab = table(pred = lm.predict, true = convect.test)
-
-# hit rate
-lm.hr = sum(diag(lm.tab)) / sum(lm.tab)
-lm.hr.vec[i] = lm.hr
-
-logit.fit = glm(convect~., data = X, family = 'binomial')
-logit.prob = predict(logit.fit, newdata = X.test, type = 'response')
-logit.predict =  rep(FALSE, length(convect.test))
-logit.predict[logit.prob >.5] = TRUE
-logit.tab = table(pred = logit.predict, true = convect.test)
-logit.hr = sum(diag(logit.tab)) / sum(logit.tab)
-
-logit.hr.vec[i] = logit.hr
-
-}
-
-lm.hr.mat[j,] = lm.hr.vec
-logit.hr.mat[j,] = logit.hr.vec 
-
+  for(i in 1:length(lm.hr.vec)){
+    
+    ix = sample(1:n, sample.size[i])
+    
+    # If the sample is from the first 30k lines of the file it is convecting
+    convect = ix > 90000
+    
+    # First 56 columns are inputs
+    X = dat[ix, 1:56] 
+    X.mat = as.matrix(X)
+    
+    # get some test data
+    ix.test = sample(1:n, 1000)
+    convect.test = ix.test > 90000
+    
+    X.test = dat[ix.test, 1:56] # data frame
+    X.test.mat = as.matrix(X.test) # matrix
+    
+    # Fit linear model
+    lmfit = lm(convect~., data = X)
+    # The linear model actually does pretty well at keeping most
+    # coefficients near zero.
+    
+    # Linear model prediction
+    lm.prob = predict(lmfit, newdata = as.data.frame(X.test))
+    lm.predict =  rep(FALSE, length(convect.test))
+    lm.predict[lm.prob >.5] = TRUE
+    
+    lm.tab = table(pred = lm.predict, true = convect.test)
+    
+    # hit rate
+    lm.hr = sum(diag(lm.tab)) / sum(lm.tab)
+    lm.hr.vec[i] = lm.hr
+    
+    logit.fit = glm(convect~., data = X, family = 'binomial')
+    logit.prob = predict(logit.fit, newdata = X.test, type = 'response')
+    logit.predict =  rep(FALSE, length(convect.test))
+    logit.predict[logit.prob >.5] = TRUE
+    logit.tab = table(pred = logit.predict, true = convect.test)
+    logit.hr = sum(diag(logit.tab)) / sum(logit.tab)
+    
+    logit.hr.vec[i] = logit.hr
+    
+  }
+  
+  lm.hr.mat[j,] = lm.hr.vec
+  logit.hr.mat[j,] = logit.hr.vec 
+  
 }
 
 pdf(file = 'lm_vs_logit_sample_size_pcs.pdf')
@@ -160,6 +165,24 @@ dev.off()
 plot(sample.size, lm.hr.vec, type = 'o')
 points(sample.size, logit.hr.vec, type = 'o', col = 'red')
 
+
+# Lasso section
+sample.size = 30000
+ix = sample(1:n, sample.size)
+
+# If the sample is from the first 30k lines of the file it is convecting
+convect = ix > 90000
+
+# First 56 columns are inputs
+X = dat[ix, 1:56] 
+X.mat = as.matrix(X)
+
+# get some test data
+ix.test = sample(1:n, 1000)
+convect.test = ix.test > 90000
+
+X.test = dat[ix.test, 1:56] # data frame
+X.test.mat = as.matrix(X.test) # matrix
 
 cv.out = cv.glmnet(X.mat,convect,alpha=1,
                    family='binomial',
@@ -187,6 +210,8 @@ lasso.tab = table(pred = lasso_predict, true = convect.test)
 #lasso.tab = table(pred = as.logical(lasso_class), true = convect.test)
 
 lasso.hr = sum(diag(lasso.tab)) / sum(lasso.tab)
+
+plot(coef(cv.out,s=lambda_1se))
 
 lasso.hr.vec[i] = lasso.hr
 
