@@ -267,7 +267,8 @@ svm.hr = sum(diag(svm.tab)) / sum(svm.tab)
 # Does it help if we normalise the columns of the inputs?
 
 dat.norm = normalize(dat)
-sample.size = c(100, 200, 500, 1000, 5000, 10000, 20000)
+
+sample.size = c(20000, 30000)
 lm.hr.vec = rep(NA, length = length(sample.size))
 logit.hr.vec = rep(NA, length = length(sample.size))
 lasso.hr.vec =  rep(NA, length = length(sample.size))
@@ -324,7 +325,6 @@ for(j in 1:reps){
     pred.svm = predict(svm.fit, X.test)
     svm.tab = table(pred = pred.svm, true = convect.test)
     svm.hr = sum(diag(svm.tab)) / sum(svm.tab)
-    
     svm.hr.vec[i] = svm.hr
     
   }
@@ -337,7 +337,7 @@ for(j in 1:reps){
 
 
 
-pdf(file = 'lm_vs_logit_sample_size_scaled_inpus.pdf')
+pdf(file = 'lm_vs_logit_sample_size_scaled_inpus_long.pdf')
 matplot(sample.size, t(lm.hr.mat), type = 'o', pch = 19,
         lty = 'solid', 
         col = 'grey',
