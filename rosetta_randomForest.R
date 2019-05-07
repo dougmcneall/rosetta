@@ -35,6 +35,7 @@ rf.tab = table(pred = rf.pred, true = convect.test)
 rf.hr = sum(diag(rf.tab)) / sum(rf.tab)
 
 # How important are the individual (scaled) variables?
-plot(importance(rf.fit))
+plot(importance(rf.fit, type = 2))
+#varImpPlot(rf.fit, type = 2)
 
 
