@@ -26,6 +26,15 @@
 #ie the amount the convection scheme changes theta. 
 # Second 28 are q increments. Again - all J/kg.
 
+# 15 minute timestep, if the model sees hot moist air underneath cold dry air, this mixes and 
+# releases available enery.
+# Net cools temperature at the surface - except
+# Latent heat of water is a first order influence on the temperature of the atmosphere.
+# Convection gets water and turns it into heat.
+# Water after convection goes down, temperature goes up.
+
+# Outputs are the differences in Theta and Q after the convection scheme has run.
+
 # last 30000 are convecting (and in order of increasing convection).
 # In fact with some repeats, particularly at the top end because 
 # I chose the cases to span different types of convection with equal weights.
@@ -70,8 +79,16 @@
 #setwd("/Users/dougmcneall/Documents/work/R/hugo")
 
 
+# Covection occurs if the mean of the output between level 11 (starting zero) to level
+# 27 inclusive is greater than 0.05, then we call it convection.
+
 #
 #X = sample2(file = 'llcsdougdat.csv', ix = ix)
+
+
+source("https://raw.githubusercontent.com/dougmcneall/packages-git/master/emtools.R")
+source("https://raw.githubusercontent.com/dougmcneall/packages-git/master/imptools.R")
+source("https://raw.githubusercontent.com/dougmcneall/packages-git/master/vistools.R")
 
 #load required library
 library(glmnet)
@@ -214,6 +231,130 @@ lasso.hr = sum(diag(lasso.tab)) / sum(lasso.tab)
 plot(coef(cv.out,s=lambda_1se))
 
 lasso.hr.vec[i] = lasso.hr
+
+
+
+logit.fit = glm(convect~., data = X, family = 'binomial')
+logit.prob = predict(logit.fit, newdata = X.test, type = 'response')
+logit.predict =  rep(FALSE, length(convect.test))
+logit.predict[logit.prob >.5] = TRUE
+logit.tab = table(pred = logit.predict, true = convect.test)
+logit.hr = sum(diag(logit.tab)) / sum(logit.tab)
+
+
+
+# Scale the data.
+# Uncertainty: why do we care?
+# Want to do this with process models. Can put in the 
+
+# Doing statistics on coarse data, but the process is much smaller. want to represent
+# the microstates that are possible with a coarse grid.
+
+# Dimension reduction on the inputs and outputs?
+# If 
+
+# Try changing proportion of convecting vs non convecting.
+
+library(e1071)
+
+test = svm(x = X, y = as.factor(convect))
+
+pred.svm = predict(test, X.test)
+svm.tab = table(pred = pred.svm, true = convect.test)
+svm.hr = sum(diag(svm.tab)) / sum(svm.tab)
+
+
+# Does it help if we normalise the columns of the inputs?
+
+dat.norm = normalize(dat)
+sample.size = c(100, 200, 500, 1000, 5000, 10000, 20000)
+lm.hr.vec = rep(NA, length = length(sample.size))
+logit.hr.vec = rep(NA, length = length(sample.size))
+lasso.hr.vec =  rep(NA, length = length(sample.size))
+svm.hr.vec =  rep(NA, length = length(sample.size))
+
+reps = 10
+lm.hr.mat    = matrix(NA, nrow = reps, ncol = length(sample.size))
+logit.hr.mat = matrix(NA, nrow = reps, ncol = length(sample.size))
+svm.hr.mat = matrix(NA, nrow = reps, ncol = length(sample.size))
+for(j in 1:reps){
+  
+  for(i in 1:length(lm.hr.vec)){
+    
+    ix = sample(1:n, sample.size[i])
+    
+    # If the sample is from the first 30k lines of the file it is convecting
+    convect = ix > 90000
+    
+    # First 56 columns are inputs
+    X = data.frame(dat.norm[ix, 1:56] )
+    X.mat = as.matrix(X)
+    
+    # get some test data
+    ix.test = sample(1:n, 1000)
+    convect.test = ix.test > 90000
+    
+    X.test = data.frame(dat.norm[ix.test, 1:56]) # data frame
+    X.test.mat = as.matrix(X.test) # matrix
+    
+    # Fit linear model
+    lmfit = lm(convect~., data = X)
+    lm.prob = predict(lmfit, newdata = as.data.frame(X.test))
+    lm.predict =  rep(FALSE, length(convect.test))
+    lm.predict[lm.prob >.5] = TRUE
+    
+    lm.tab = table(pred = lm.predict, true = convect.test)
+    
+    # hit rate
+    lm.hr = sum(diag(lm.tab)) / sum(lm.tab)
+    lm.hr.vec[i] = lm.hr
+    
+    # Logistic regression classifier
+    logit.fit = glm(convect~., data = X, family = 'binomial')
+    logit.prob = predict(logit.fit, newdata = X.test, type = 'response')
+    logit.predict =  rep(FALSE, length(convect.test))
+    logit.predict[logit.prob >.5] = TRUE
+    logit.tab = table(pred = logit.predict, true = convect.test)
+    logit.hr = sum(diag(logit.tab)) / sum(logit.tab)
+    
+    logit.hr.vec[i] = logit.hr
+    
+    # Support Vector Machine classifier
+    svm.fit = svm(x = X, y = as.factor(convect))
+    pred.svm = predict(svm.fit, X.test)
+    svm.tab = table(pred = pred.svm, true = convect.test)
+    svm.hr = sum(diag(svm.tab)) / sum(svm.tab)
+    
+    svm.hr.vec[i] = svm.hr
+    
+  }
+  
+  lm.hr.mat[j,] = lm.hr.vec
+  logit.hr.mat[j,] = logit.hr.vec 
+  svm.hr.mat[j,] = svm.hr.vec 
+  
+}
+
+
+
+pdf(file = 'lm_vs_logit_sample_size_scaled_inpus.pdf')
+matplot(sample.size, t(lm.hr.mat), type = 'o', pch = 19,
+        lty = 'solid', 
+        col = 'grey',
+        ylim = c(0.75,0.95),
+        main = 'rotated', ylab = 'hit rate')
+points(sample.size, apply(t(lm.hr.mat), 1, mean), type = 'o', col = 'black', lwd = 2, pch = 19)
+
+matpoints(sample.size, t(logit.hr.mat), type = 'o', pch = 19,lty = 'solid', col = 'red')
+points(sample.size, apply(t(logit.hr.mat), 1, mean), type = 'o', pch = 19, col = 'darkred', lwd = 2)
+
+matpoints(sample.size, t(svm.hr.mat), type = 'o', pch = 19,lty = 'solid', col = 'skyblue')
+points(sample.size, apply(t(svm.hr.mat), 1, mean), type = 'o', pch = 19, col = 'blue', lwd = 2)
+
+legend('topleft', lty = c(1,1) , col = c('grey', 'red', 'blue'), legend = c('lm', 'logit', 'svm'))
+
+dev.off()
+
 
 
 
