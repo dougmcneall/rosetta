@@ -28,7 +28,9 @@ convect.test = ix.test > 90000
 X.test = data.frame(dat.norm[ix.test, 1:56]) # data frame
 X.test.mat = as.matrix(X.test) # matrix
 
-rf.fit = randomForest(x = X, y = as.factor(convect))
+wts = c(0.75, 0.25)
+
+rf.fit = randomForest(x = X, y = as.factor(convect), classwt = 1/wts)
 
 rf.pred = predict(rf.fit, newdata = X.test, type = 'response')
 rf.tab = table(pred = rf.pred, true = convect.test)
